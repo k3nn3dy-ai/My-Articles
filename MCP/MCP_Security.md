@@ -1,4 +1,4 @@
-# Model Context Protocol (MCP): Integrating AI with Tools – Benefits and Security Risks
+# Why MCP is a Security Nightmare: Real-World Attacks on AI Agent Infrastructure
 
 ## Introduction
 
@@ -14,9 +14,19 @@ In essence, MCP is like a universal adapter that lets an AI agent say, “Here�
 
 MCP follows a client–server model: the AI agent (client) requests additional context from an MCP server, which in turn fetches data from various sources (e.g. vector databases, documents/APIs, internal tools) and returns it to the AI.
 
-A typical MCP deployment might look like this: an AI Assistant (client) connects to an MCP server, which is configured with “tools” or connectors to your systems (for example, a database query function, an email-sending function, a file search function, etc.). When the user asks something that requires external information or action, the AI can call those tools via MCP and get results back in real time. For instance, an AI support chatbot could use MCP to query a customer database or fetch documentation on the fly. This standardized context interface saves developers from writing custom integration code for each AI project. MCP essentially turns context into infrastructure, allowing AI models to have a dynamic “memory” or access layer to the live data they need.
+A typical MCP deployment might look like this: an AI Assistant (client) connects to an MCP server, which is configured with "tools" or connectors to your systems (for example, a database query function, an email-sending function, a file search function, etc.). When the user asks something that requires external information or action, the AI can call those tools via MCP and get results back in real time. For instance, an AI support chatbot could use MCP to query a customer database or fetch documentation on the fly. This standardized context interface saves developers from writing custom integration code for each AI project. MCP essentially turns context into infrastructure, allowing AI models to have a dynamic "memory" or access layer to the live data they need.
 
-![Diagram of MCP deployment](image.png)
+**Diagram: Typical MCP Deployment Architecture**
+
+```
+User ──→ AI Assistant (Client) ──→ MCP Server ──→ Tools/Connectors
+                                                      │
+                                                      ├──→ Database
+                                                      ├──→ Email System
+                                                      ├──→ File System
+                                                      ├──→ APIs
+                                                      └──→ External Services
+```
 
 ## Benefits of the Model Context Protocol
 
@@ -77,16 +87,10 @@ While MCP is amazing, it also introduces new vulnerabilities that both developer
 
 **Diagram: How command injection can occur in an MCP tool**
 
-```mermaid
-flowchart TD
-  User[User/AI Input] --> Tool[MCP Tool]
-  Attacker[Attacker] -.->|Malicious Input| Tool
-  Tool -->|Safe Input| Shell[Shell Command]
-  Tool -->|Malicious Input| Exploit[Shell Command (Injected)]
-  Shell --> System[System (Expected)]
-  Exploit --> Compromise[System Compromised]
-  style Compromise fill:#faa
-  style Attacker fill:#faa
+```
+User/AI Input ──→ MCP Tool (no validation) ──→ Shell Command
+     ↑                                              ↓
+Attacker (malicious input)                    System Compromised
 ```
 
 Just like any software, the functions (tools) exposed via MCP can have vulnerabilities. Unfortunately, many early MCP tools have basic security flaws like command injection. For example, a naive image conversion tool might call a system command without sanitizing input. An attacker (or even a malicious user prompt) could include shell meta-characters in a filename, e.g. `; cat /etc/passwd > leaked.txt`, to execute unauthorized commands. In one case, a tool that simply wraps an OS command was exploitable by crafting the input, leading to leakage of system files. This kind of mistake is well-understood in traditional app security, yet it can reappear in MCP implementations if developers aren’t careful.
@@ -113,24 +117,18 @@ Just like any software, the functions (tools) exposed via MCP can have vulnerabi
 
 **Lesson:** All tool implementations must validate and sanitize inputs, use safe coding practices, and avoid constructing commands directly from user-provided strings – even though the “user” in this case might be an AI, the AI is acting on behalf of a real user request (possibly manipulated by an attacker). In 2025, we really shouldn’t be seeing these classic injection flaws resurface!
 
-### Credential Theft and “Keys to the Kingdom”
+### Credential Theft and "Keys to the Kingdom"
 
 **Diagram: How compromising an MCP server can expose all connected credentials**
 
-```mermaid
-flowchart TD
-  MCP[MCP Server] -- Stores --> Tokens[API Tokens / OAuth Credentials]
-  MCP -- Access --> Email[Email]
-  MCP -- Access --> DB[Database]
-  MCP -- Access --> Cloud[Cloud Storage]
-  Attacker -.->|Compromise| MCP
-  CompMCP[Compromised MCP Server]:::danger
-  Attacker -.-> CompMCP
-  CompMCP -- Access --> Email
-  CompMCP -- Access --> DB
-  CompMCP -- Access --> Cloud
-  classDef danger fill:#faa;
-  style Attacker fill:#faa
+```
+MCP Server ──→ Stores API Tokens/OAuth Credentials
+    │
+    ├──→ Email Access
+    ├──→ Database Access  
+    └──→ Cloud Storage Access
+
+Attacker ──→ Compromises MCP Server ──→ Gains Access to ALL Services
 ```
 
 An MCP server often needs to store API credentials or OAuth tokens to access external services (email, cloud drives, databases, etc.). This turns the MCP server into a high-value target – if an attacker compromises it, they potentially gain all those tokens and with them, access to everything the AI can reach. In other words, one breach of the MCP server can yield a trove of credentials and broad account access.
@@ -156,16 +154,12 @@ For example, if an MCP server holds a Gmail OAuth token, an attacker who steals 
 
 **Diagram: How hidden instructions in data or tool descriptions can trigger unintended actions**
 
-```mermaid
-flowchart TD
-  UserData[User Data / Tool Description] -->|Benign| Agent[AI Agent]
-  Hidden[Hidden Instructions (Prompt Injection)] -.-> Agent
-  Agent -- Intended Action --> Tool[MCP Tool]
-  Agent -- Unintended Action --> ExploitTool[MCP Tool (Abused)]
-  Tool --> System[System (Expected)]
-  ExploitTool --> Compromise[System Compromised]
-  style Hidden fill:#ffd
-  style Compromise fill:#faa
+```
+User Data/Tool Description ──→ AI Agent
+         ↑ (hidden instructions)
+    Prompt Injection ──────────┘
+         ↓
+   Unintended Action ──→ MCP Tool ──→ System Compromised
 ```
 
 MCP creates new angles for prompt injection attacks, where malicious instructions are smuggled into the data the AI processes. Because AI agents ultimately deal in natural language, an attacker can craft inputs that include hidden commands for the AI, causing it to misuse the tools. These hidden directives could be injected in various places – for instance, in the descriptions of tools or in the content the AI is asked to process.
@@ -188,15 +182,13 @@ MCP creates new angles for prompt injection attacks, where malicious instruction
 
 **Diagram: How a malicious MCP server can exfiltrate data or spoof tools**
 
-```mermaid
-flowchart TD
-  Agent[AI Agent] --> Legit[Legitimate MCP Server]
-  Agent --> Mal[Malicious MCP Server]
-  Marketplace[Marketplace/Plugin Repo] --> Mal
-  Mal -- Exfiltrate Data --> Attacker[Attacker]
-  Mal -- Spoofed Tool --> Agent
-  style Mal fill:#faa
-  style Attacker fill:#faa
+```
+AI Agent ──→ Legitimate MCP Server
+    │
+    └──→ Malicious MCP Server ←── Marketplace/Plugin Repo
+              │
+              ├──→ Exfiltrates Data ──→ Attacker
+              └──→ Spoofs Tools ──→ AI Agent
 ```
 
 Because MCP is an open protocol, anyone can implement an MCP server for various tools or services – and many are shared openly. This opens the door for supply chain attacks and spoofing. An attacker could create a fake MCP server that impersonates a legitimate integration, tricking users or even AI agents into using it.
@@ -223,14 +215,11 @@ Another variant is the “rug-pull”: a developer releases a genuinely useful M
 
 **Diagram: How a malicious MCP server can shadow or contaminate trusted tools**
 
-```mermaid
-flowchart TD
-  Agent[AI Agent] --> Trusted[Trusted MCP Server]
-  Agent --> Malicious[Malicious MCP Server]
-  Trusted -- Tools --> Context[Session Context]
-  Malicious -- Shadow/Inject --> Context
-  Context --> Agent
-  style Malicious fill:#faa
+```
+AI Agent ──→ Trusted MCP Server ──→ Session Context
+    │                              ↑
+    └──→ Malicious MCP Server ─────┘
+              (shadows/injects)
 ```
 
 In advanced setups, an AI might interface with multiple MCP servers (for different domains or services). This scenario introduces the risk of cross-server interference. A malicious MCP server could potentially redefine or masquerade as another server’s tool, causing confusion or intercepting data.
@@ -255,14 +244,11 @@ While this is a more complex attack surface, it highlights that as we chain mult
 
 **Diagram: How excessive permissions and data aggregation create a single point of failure**
 
-```mermaid
-flowchart TD
-  Email[Email] --> MCP[MCP Server]
-  DB[Database] --> MCP
-  Cloud[Cloud Storage] --> MCP
-  Attacker -.->|Compromise| MCP
-  MCP -- Aggregated Data --> Attacker
-  style Attacker fill:#faa
+```
+Email ──┐
+DB   ───┼──→ MCP Server ←── Attacker
+Cloud ──┘         │
+                  └──→ Aggregated Data ──→ Attacker
 ```
 
 MCP’s power often comes from having broad access to multiple systems on behalf of the user. However, this concentration of access is itself a risk. Many MCP servers request overly broad permission scopes for convenience – for instance, asking for full access to your entire Google account (emails, drive, calendar) to be “fully functional,” where a narrower read-only or single-folder permission might have sufficed.
@@ -289,13 +275,10 @@ This one-stop-shop nature of MCP changes the security model: systems that were m
 
 **Diagram: How lack of authentication or integrity controls enables tampering**
 
-```mermaid
-flowchart TD
-  Agent[AI Agent] -- Unauthenticated Request --> MCP[MCP Server]
-  Attacker -.->|Impersonate| MCP
-  Attacker -- Tampered Data --> Agent
-  Note[No Auth/Integrity Check] --- MCP
-  style Attacker fill:#faa
+```
+AI Agent ──→ MCP Server (No Auth/Integrity Check)
+    ↑              ↑
+    └─── Attacker (Impersonates/Tampers) ───┘
 ```
 
 Some early implementations of MCP did not include strong authentication or message integrity by default. For instance, certain MCP servers would accept requests from any local client without verifying identity, or included session identifiers in URLs in insecure ways. Additionally, the protocol did not mandate signing or verification of messages, so tampering could go undetected. The trust model assumed all parties are benevolent, which is not a safe assumption on a hostile internet.
@@ -335,6 +318,35 @@ Adopting MCP in your AI workflows calls for a security-first mindset. It’s cru
 - **Defense in Depth for MCP Infrastructure:** Recognize that the MCP server is now part of your critical infrastructure. Harden the server like you would any other server – apply security patches, limit network exposure (e.g. bind it to localhost or a private network if the AI client is local), use TLS for any client-server communication, and consider running the MCP server with restrictive OS privileges (so that if it’s compromised, the damage is contained). If the MCP server supports it, enable any security features the protocol or implementation offers (e.g. signed requests, authenticated sessions). Additionally, isolate the environment: for example, if the MCP server can execute code (like a Python tool runner), run it in a sandbox or container with strict resource limits and no unnecessary network access. The idea is to limit the blast radius of any single component being exploited.
 
 In summary, don’t let the “newness” of MCP lull you into bypassing security fundamentals. We should embrace the innovation of AI integrations, but with the same caution we apply to any application that has access to sensitive data and functions. By combining classic cybersecurity practices (input validation, least privilege, authentication, monitoring, etc.) with awareness of AI-specific threat vectors (prompt injection, tool identity spoofing), we can enjoy the powerful capabilities of MCP safely.
+
+## MCP Server Implementation Examples: Security-Conscious Approaches
+
+While the security risks of MCP are significant, they are not insurmountable. Several projects demonstrate approaches to building MCP servers with security considerations in mind. Here are examples that illustrate different security design philosophies:
+
+### 🛡️ Kali MCP Server: Security-Focused Design
+
+My [Kali MCP Server](https://github.com/k3nn3dy-ai/kali-mcp) attempts to address security concerns through several design choices:
+
+- **Command Validation**: Commands are validated against an allowlist before execution
+- **Containerization**: Runs in a Docker container with non-root user execution
+- **Session Management**: Implements session isolation for different pentesting activities
+- **Input Validation**: Includes input sanitisation for user-provided parameters
+- **Audit Logging**: Comprehensive logging of commands and actions
+
+This implementation shows an approach to exposing powerful security tools through MCP while attempting to maintain some security controls. However, as with any MCP server, users should conduct their own security assessment before deployment.
+
+### 📸 Screenshot MCP Server: Minimal Scope Design
+
+My [Screenshot MCP Server](https://github.com/k3nn3dy-ai/screenshot_mcp) takes a different approach by limiting functionality:
+
+- **Single Purpose**: Focuses on web screenshot capture only
+- **stdio Transport**: Uses local stdio transport, reducing network exposure
+- **No Credential Storage**: Operates without persistent authentication tokens
+- **Controlled Output**: Limited to screenshot file generation
+
+This example demonstrates how limiting an MCP server's scope can reduce the potential attack surface, though it also limits functionality.
+
+**Important Note:** These examples illustrate different approaches to MCP security design, but readers should conduct their own security assessments before using any MCP server in production environments. The security of any MCP implementation depends on the specific use case, deployment environment, and threat model.
 
 ## Conclusion
 
