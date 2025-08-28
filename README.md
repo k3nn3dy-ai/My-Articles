@@ -6,6 +6,22 @@ A collection of in-depth technical articles covering cybersecurity, AI security,
 
 ### 🔒 **AI Security & Cybersecurity**
 
+#### [Guardrails for AI Penetration Testing Agents](./AI%20Guardrails%20for%20Pentesting/AI_guardrails_for_pentesting.md)
+**Published:** 2025  
+**Category:** AI Security, Penetration Testing, AI Guardrails  
+**Summary:** A comprehensive guide to implementing safety guardrails for AI-powered penetration testing agents. This article explores the critical need for constraining autonomous AI behavior in security testing environments, covering technical implementation methods, policy frameworks, real-world case studies, and legal/ethical considerations.
+
+**Key Topics:**
+- Policy-based guardrail frameworks (NVIDIA NeMo, Guardrails AI, Custom DSL)
+- Technical enforcement methods (sandboxing, allow/deny lists, human-in-the-loop)
+- Best practices for configuration and maintenance
+- Case studies from PentestGPT, CAI Framework, Nebula, and research projects
+- Legal compliance (CFAA, GDPR) and ethical considerations
+- Behavioral monitoring and kill-switch mechanisms
+- Least privilege and permission scoping strategies
+
+---
+
 #### [Why MCP is a Security Nightmare: Real-World Attacks on AI Agent Infrastructure](./MCP/MCP_Security.md)
 **Published:** 2025  
 **Category:** AI Security, Model Context Protocol, Cybersecurity  
